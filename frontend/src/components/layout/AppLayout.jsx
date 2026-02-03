@@ -4,14 +4,22 @@ import Topbar from "../Topbar";
 
 export default function AppLayout() {
   return (
-    <div className="flex h-screen bg-gray-50">
+    // FULL viewport height + NO page scroll
+    <div className="flex h-screen overflow-hidden bg-gray-50">
+
       <Sidebar />
 
-      <div className="flex flex-col flex-1">
+      {/* Right side */}
+      <div className="flex flex-col flex-1 overflow-hidden">
+
+        {/* Topbar fixed */}
         <Topbar />
-        <main className="flex-1 p-6">
+
+        {/* Main content area (NO scroll here) */}
+        <main className="flex-1 p-6 overflow-hidden">
           <Outlet />
         </main>
+
       </div>
     </div>
   );

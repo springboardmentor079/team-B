@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   FileText,
@@ -9,15 +9,22 @@ import {
 } from "lucide-react";
 
 const navItems = [
-  { name: "Dashboard", path: "/", icon: LayoutDashboard },
+  { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
   { name: "Petitions", path: "/petitions", icon: FileText },
   { name: "Polls", path: "/polls", icon: BarChart3 },
   { name: "Officials", path: "/officials", icon: Users },
-  { name: "Reports", path: "/reports", icon: BarChart3 },
   { name: "Settings", path: "/settings", icon: Settings },
 ];
 
 export default function Sidebar() {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate("/auth");
+  };
+
   return (
     <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
       
@@ -54,7 +61,10 @@ export default function Sidebar() {
 
       {/* Logout */}
       <div className="px-3 py-4 border-t border-gray-200">
-        <button className="flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50 transition">
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50 transition"
+        >
           <LogOut size={18} />
           Logout
         </button>

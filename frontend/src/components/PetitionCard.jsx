@@ -1,6 +1,9 @@
+import { useState } from "react";
+import axios from "axios";
 import Button from "./ui/Button";
 
 export default function PetitionCard({
+  _id,
   title = "Untitled Petition",
   category = "General",
   location = "Unknown location",
@@ -8,16 +11,52 @@ export default function PetitionCard({
   target = 1,
   author = "Anonymous",
   status = "active",
+  has_signed = false,
 }) {
-  const progress = Math.min((current / target) * 100, 100);
+  const [signed, setSigned] = useState(has_signed);
+  const [count, setCount] = useState(current);
+  const [loading, setLoading] = useState(false);
+
+  const progress = Math.min((count / target) * 100, 100);
+
+  const handleSign = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("Please login to sign petitions");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const res = await axios.post(
+        `http://localhost:5000/api/petitions/${_id}/sign`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setSigned(true);
+      setCount(res.data.signature_count);
+    } catch (error) {
+      alert(
+        error.response?.data?.message ||
+          "Failed to sign petition"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition">
       
       {/* Category */}
       <span className="inline-block text-xs font-medium px-2 py-1 rounded bg-gray-100 text-gray-600 mb-2">
-        {category?.toUpperCase() || "GENERAL"}
-
+        {category.toUpperCase()}
       </span>
 
       {/* Title */}
@@ -34,7 +73,7 @@ export default function PetitionCard({
       <div className="mt-4">
         <div className="flex justify-between text-xs text-gray-500 mb-1">
           <span>
-            {current} / {target} signatures
+            {count} / {target} signatures
           </span>
           <span>{Math.round(progress)}%</span>
         </div>
@@ -42,7 +81,9 @@ export default function PetitionCard({
         <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
           <div
             className={`h-full transition-all duration-300 ${
-              status === "successful" ? "bg-green-500" : "bg-blue-500"
+              status === "successful"
+                ? "bg-green-500"
+                : "bg-blue-500"
             }`}
             style={{ width: `${progress}%` }}
           />
@@ -55,12 +96,22 @@ export default function PetitionCard({
           View Details
         </Button>
 
-        {status === "active" ? (
-          <Button size="sm">Sign Petition</Button>
-        ) : (
+        {status !== "active" ? (
           <span className="text-green-600 text-sm font-medium self-center">
             ✓ Successful
           </span>
+        ) : signed ? (
+          <span className="text-blue-600 text-sm font-medium self-center">
+            ✓ Signed
+          </span>
+        ) : (
+          <Button
+            size="sm"
+            onClick={handleSign}
+            disabled={loading}
+          >
+            {loading ? "Signing..." : "Sign Petition"}
+          </Button>
         )}
       </div>
     </div>
