@@ -7,6 +7,7 @@ export default function PetitionCard({
   title = "Untitled Petition",
   category = "General",
   location = "Unknown location",
+  description = "",
   current = 0,
   target = 1,
   author = "Anonymous",
@@ -16,6 +17,7 @@ export default function PetitionCard({
   const [signed, setSigned] = useState(has_signed);
   const [count, setCount] = useState(current);
   const [loading, setLoading] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   const progress = Math.min((count / target) * 100, 100);
 
@@ -92,7 +94,7 @@ export default function PetitionCard({
 
       {/* Actions */}
       <div className="flex gap-3 mt-4">
-        <Button variant="secondary" size="sm">
+        <Button variant="secondary" size="sm" onClick={() => setShowDetails(true)}>
           View Details
         </Button>
 
@@ -114,6 +116,47 @@ export default function PetitionCard({
           </Button>
         )}
       </div>
+
+      {/* Details Modal */}
+      {showDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-medium text-gray-500">
+                  {category.toUpperCase()}
+                </p>
+                <h3 className="text-lg font-semibold text-gray-900 mt-1">
+                  {title}
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  {location} • by {author}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowDetails(false)}
+                className="text-gray-400 hover:text-gray-600"
+                aria-label="Close details"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mt-4 text-sm text-gray-700 leading-relaxed">
+              {description ? description : "No description provided."}
+            </div>
+
+            <div className="mt-6">
+              <button
+                onClick={() => setShowDetails(false)}
+                className="w-full px-4 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

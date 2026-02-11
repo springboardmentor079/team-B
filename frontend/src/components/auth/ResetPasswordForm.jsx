@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 
@@ -8,6 +8,7 @@ export default function ResetPasswordForm() {
 
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [notify, setNotify] = useState(null);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -19,17 +20,40 @@ export default function ResetPasswordForm() {
         newPassword: password,  // 🔥 REQUIRED
       });
 
-      alert("Password reset successful. Please login.");
-      navigate("/auth");
+      setNotify({
+        type: "success",
+        title: "Password changed successfully",
+        message: "You can now sign in with your new password.",
+        actionLabel: "Go to Login",
+        onAction: () => navigate("/auth"),
+        autoCloseMs: 2500,
+      });
     } catch (err) {
-      alert(err.response?.data?.message || "Password reset failed");
+      setNotify({
+        type: "error",
+        title: "Password reset failed",
+        message: err.response?.data?.message || "Please try again.",
+        actionLabel: "OK",
+      });
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (!notify?.autoCloseMs) return;
+
+    const timer = setTimeout(() => {
+      const action = notify.onAction;
+      setNotify(null);
+      action?.();
+    }, notify.autoCloseMs);
+
+    return () => clearTimeout(timer);
+  }, [notify]);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
       <form
         onSubmit={onSubmit}
         className="bg-white p-6 rounded-xl shadow-md w-full max-w-md"
@@ -55,6 +79,47 @@ export default function ResetPasswordForm() {
           {loading ? "Resetting..." : "Reset Password"}
         </button>
       </form>
+
+      {/* Notification Modal */}
+      {notify && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-gray-100 p-6 text-center">
+            <div
+              className={`w-12 h-12 mx-auto rounded-full flex items-center justify-center font-semibold ${
+                notify.type === "error"
+                  ? "bg-red-50 text-red-600"
+                  : notify.type === "info"
+                  ? "bg-blue-50 text-blue-600"
+                  : "bg-green-50 text-green-600"
+              }`}
+            >
+              {notify.type === "error" ? "!" : "✓"}
+            </div>
+            <h3 className="mt-4 text-lg font-semibold text-gray-900">
+              {notify.title}
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              {notify.message}
+            </p>
+            <button
+              onClick={() => {
+                const action = notify.onAction;
+                setNotify(null);
+                action?.();
+              }}
+              className={`mt-6 w-full px-4 py-2.5 rounded-lg text-white text-sm font-medium transition ${
+                notify.type === "error"
+                  ? "bg-red-600 hover:bg-red-700"
+                  : notify.type === "info"
+                  ? "bg-blue-600 hover:bg-blue-700"
+                  : "bg-green-600 hover:bg-green-700"
+              }`}
+            >
+              {notify.actionLabel || "OK"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

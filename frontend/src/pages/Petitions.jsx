@@ -105,55 +105,56 @@ export default function Petitions() {
         }
       />
 
-      {/* TABS */}
-      <div className="flex gap-8 border-b mt-2">
-        {[
-          { key: "all", label: "All Petitions", icon: FileText },
-          { key: "mine", label: "My Petitions", icon: User },
-          { key: "signed", label: "Signed by Me", icon: CheckCircle },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const active = scope === tab.key;
+      {/* TABS + FILTERS */}
+      <div className="mt-2 pb-3 border-b flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+        <div className="flex gap-6 sm:gap-8 overflow-x-auto whitespace-nowrap">
+          {[
+            { key: "all", label: "All Petitions", icon: FileText },
+            { key: "mine", label: "My Petitions", icon: User },
+            { key: "signed", label: "Signed by Me", icon: CheckCircle },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const active = scope === tab.key;
 
-          return (
-            <button
-              key={tab.key}
-              onClick={() => {
-                setScope(tab.key);
-                setStatus("all"); // reset noise
-              }}
-              className={`flex items-center gap-2 pb-2 text-sm font-medium transition
-                ${
-                  active
-                    ? "border-b-2 border-blue-600 text-blue-600"
-                    : "text-gray-500 hover:text-blue-600"
-                }
-              `}
-            >
-              <Icon size={16} />
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
+            return (
+              <button
+                key={tab.key}
+                onClick={() => {
+                  setScope(tab.key);
+                  setStatus("all"); // reset noise
+                }}
+                className={`flex items-center gap-2 pb-2 text-sm font-medium transition
+                  ${
+                    active
+                      ? "border-b-2 border-blue-600 text-blue-600"
+                      : "text-gray-500 hover:text-blue-600"
+                  }
+                `}
+              >
+                <Icon size={16} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
 
-      {/* FILTERS */}
-      <div className="flex flex-wrap items-center gap-4 mt-4">
-        <CategoryFilter
-          value={category}
-          onChange={setCategory}
-        />
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 xl:shrink-0">
+          <CategoryFilter
+            value={category}
+            onChange={setCategory}
+          />
 
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="border rounded-lg px-3 py-1.5 text-sm bg-white"
-        >
-          <option value="all">Status: All</option>
-          <option value="active">Active</option>
-          <option value="under_review">Under Review</option>
-          <option value="closed">Closed (Resolved)</option>
-        </select>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="w-full sm:w-auto border rounded-lg px-3 py-1.5 text-sm bg-white"
+          >
+            <option value="all">Status: All</option>
+            <option value="active">Active</option>
+            <option value="under_review">Under Review</option>
+            <option value="closed">Closed (Resolved)</option>
+          </select>
+        </div>
       </div>
 
       {/* PETITION LIST (ONLY THIS SCROLLS) */}
@@ -165,13 +166,14 @@ export default function Petitions() {
             No petitions found.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {petitions.map((p) => (
               <PetitionCard
                 key={p._id}
                 _id={p._id}
                 title={p.title}
                 category={p.category}
+                description={p.description}
                 location={
                   p.location?.jurisdiction?.city ||
                   p.location?.address

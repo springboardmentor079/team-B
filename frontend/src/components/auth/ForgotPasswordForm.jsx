@@ -1,12 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Mail, ArrowLeft } from "lucide-react";
 import { requestPasswordReset } from "../../services/authService";
 
-export default function ForgotPasswordForm({ onBackToLogin }) {
+export default function ForgotPasswordForm({ onBackToLogin, onNotify }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
 
   const {
     register,
@@ -20,55 +19,38 @@ export default function ForgotPasswordForm({ onBackToLogin }) {
 
     try {
       await requestPasswordReset(data.email);
-      setSuccess(true);
+      onNotify?.({
+        type: "success",
+        title: "Reset link sent",
+        message: "Check your email for the password reset link.",
+        actionLabel: "Back to Login",
+        onAction: () => onBackToLogin(),
+        autoCloseMs: 2500,
+      });
     } catch (err) {
-      setError(
+      const message =
         err.response?.data?.message ||
-          "Failed to request password reset. Please try again."
-      );
+        "Failed to request password reset. Please try again.";
+      setError(message);
+      onNotify?.({
+        type: "error",
+        title: "Reset failed",
+        message,
+        actionLabel: "OK",
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Auto redirect after success (3 seconds)
-  useEffect(() => {
-    if (success) {
-      const timer = setTimeout(() => {
-        onBackToLogin();
-      }, 3000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [success, onBackToLogin]);
-
-  /* ---------------- SUCCESS STATE ---------------- */
-  if (success) {
-    return (
-      <div className="w-full max-w-md mx-auto bg-white rounded-xl shadow-md p-8 text-center">
-        <Mail className="mx-auto mb-4 text-green-600" size={56} />
-        <h2 className="text-2xl font-semibold text-gray-800 mb-2">
-          Check your email
-        </h2>
-        <p className="text-gray-600 mb-4">
-          We’ve sent a password reset link to your email address.
-          Click the link to reset your password.
-        </p>
-        <p className="text-sm text-gray-500">
-          Redirecting to login in 3 seconds…
-        </p>
-      </div>
-    );
-  }
-
   /* ---------------- FORM STATE ---------------- */
   return (
-    <div className="w-full max-w-md mx-auto bg-white rounded-xl shadow-md p-8">
-      <h2 className="text-2xl font-semibold text-center text-gray-800 mb-2">
+    <div className="w-full max-w-md mx-auto bg-white rounded-xl shadow-md p-6 sm:p-8">
+      <h2 className="text-xl sm:text-2xl font-semibold text-center text-gray-800 mb-2">
         Forgot password?
       </h2>
       <p className="text-sm text-center text-gray-600 mb-6">
-        Enter your email address and we’ll send you a link to reset your password.
+        Enter your email address and we'll send you a link to reset your password.
       </p>
 
       {error && (

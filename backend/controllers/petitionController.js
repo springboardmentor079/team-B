@@ -312,7 +312,15 @@ exports.signPetition = async (req, res) => {
       user: userId
     });
 
-    await signature.save();
+    try {
+      await signature.save();
+    } catch (err) {
+      // Handle race condition if the same user signs concurrently
+      if (err && err.code === 11000) {
+        return res.status(400).json({ message: 'You have already signed this petition' });
+      }
+      throw err;
+    }
 
     // Get updated signature count
     const signatureCount = await Signature.countDocuments({ petition: id });

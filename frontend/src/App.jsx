@@ -7,6 +7,8 @@ import CreatePetition from "./pages/CreatePetition";
 import AuthPage from "./pages/AuthPage";
 import ResetPasswordForm from "./components/auth/ResetPasswordForm";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
+import Polls from "./pages/Polls";
+import CreatePoll from "./pages/CreatePoll";
 
 export default function App() {
   return (
@@ -38,6 +40,9 @@ export default function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/petitions" element={<Petitions />} />
           <Route path="/create" element={<CreatePetition />} />
+          <Route path="/polls" element={<Polls />} />
+          <Route path="/polls/create" element={<CreatePoll />} />
+
         </Route>
 
       </Routes>

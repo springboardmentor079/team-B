@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Vote, ShieldCheck, MapPin } from "lucide-react";
 
@@ -8,16 +8,51 @@ import ForgotPasswordForm from "../components/auth/ForgotPasswordForm";
 
 export default function AuthPage() {
   const [activeView, setActiveView] = useState("login");
+  const [notify, setNotify] = useState(null);
   const navigate = useNavigate();
 
   const handleLoginSuccess = (data) => {
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify(data.user));
-    navigate("/dashboard");
+    setNotify({
+      type: "success",
+      title: "Signed in successfully",
+      message: "Welcome back! You are now logged in.",
+      actionLabel: "Continue",
+      onAction: () => navigate("/dashboard"),
+      autoCloseMs: 2500,
+    });
   };
 
+  const handleSignupSuccess = () => {
+    setNotify({
+      type: "success",
+      title: "Signup successful",
+      message: "Your account is ready. Please sign in to continue.",
+      actionLabel: "Go to Sign In",
+      onAction: () => setActiveView("login"),
+      autoCloseMs: 2500,
+    });
+  };
+
+  const handleNotify = (payload) => {
+    setNotify(payload);
+  };
+
+  useEffect(() => {
+    if (!notify?.autoCloseMs) return;
+
+    const timer = setTimeout(() => {
+      const action = notify.onAction;
+      setNotify(null);
+      action?.();
+    }, notify.autoCloseMs);
+
+    return () => clearTimeout(timer);
+  }, [notify]);
+
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+    <div className="min-h-screen w-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center px-4 py-6">
       <div className="max-w-5xl w-full bg-white rounded-2xl shadow-xl overflow-hidden grid grid-cols-1 md:grid-cols-2">
         
         {/* Left panel */}
@@ -43,14 +78,14 @@ export default function AuthPage() {
         </div>
 
         {/* Right panel */}
-        <div className="p-8 flex flex-col justify-center">
+        <div className="p-6 sm:p-8 flex flex-col justify-center">
 
           {/* Tabs */}
           {activeView !== "forgot" && (
             <div className="flex mb-6 border-b">
               <button
                 onClick={() => setActiveView("login")}
-                className={`flex-1 py-2 font-semibold ${
+                className={`flex-1 py-2 font-semibold text-sm sm:text-base ${
                   activeView === "login"
                     ? "border-b-2 border-indigo-600 text-indigo-600"
                     : "text-gray-500"
@@ -60,7 +95,7 @@ export default function AuthPage() {
               </button>
               <button
                 onClick={() => setActiveView("signup")}
-                className={`flex-1 py-2 font-semibold ${
+                className={`flex-1 py-2 font-semibold text-sm sm:text-base ${
                   activeView === "signup"
                     ? "border-b-2 border-indigo-600 text-indigo-600"
                     : "text-gray-500"
@@ -76,21 +111,67 @@ export default function AuthPage() {
             <LoginForm
               onSuccess={handleLoginSuccess}
               onForgotPassword={() => setActiveView("forgot")}
+              onNotify={handleNotify}
             />
           )}
 
           {activeView === "signup" && (
-            <OTPSignupForm onSuccess={() => setActiveView("login")} />
+            <OTPSignupForm
+              onSuccess={handleSignupSuccess}
+              onNotify={handleNotify}
+            />
           )}
 
           {activeView === "forgot" && (
             <ForgotPasswordForm
               onBackToLogin={() => setActiveView("login")}
+              onNotify={handleNotify}
             />
           )}
 
         </div>
       </div>
+
+      {/* Notification Modal */}
+      {notify && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-gray-100 p-6 text-center">
+            <div
+              className={`w-12 h-12 mx-auto rounded-full flex items-center justify-center font-semibold ${
+                notify.type === "error"
+                  ? "bg-red-50 text-red-600"
+                  : notify.type === "info"
+                  ? "bg-blue-50 text-blue-600"
+                  : "bg-green-50 text-green-600"
+              }`}
+            >
+              {notify.type === "error" ? "!" : "✓"}
+            </div>
+            <h3 className="mt-4 text-lg font-semibold text-gray-900">
+              {notify.title}
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              {notify.message}
+            </p>
+            <button
+              onClick={() => {
+                const action = notify.onAction;
+                setNotify(null);
+                action?.();
+              }}
+              className={`mt-6 w-full px-4 py-2.5 rounded-lg text-white text-sm font-medium transition ${
+                notify.type === "error"
+                  ? "bg-red-600 hover:bg-red-700"
+                  : notify.type === "info"
+                  ? "bg-blue-600 hover:bg-blue-700"
+                  : "bg-green-600 hover:bg-green-700"
+              }`}
+            >
+              {notify.actionLabel || "OK"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

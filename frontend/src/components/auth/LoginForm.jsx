@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { loginUser } from "../../services/authService";
 
-export default function LoginForm({ onSuccess, onForgotPassword }) {
+export default function LoginForm({ onSuccess, onForgotPassword, onNotify }) {
   const { register, handleSubmit } = useForm();
 
   const onSubmit = async (formData) => {
@@ -17,7 +17,12 @@ export default function LoginForm({ onSuccess, onForgotPassword }) {
       // ✅ Pass correct data upward
       onSuccess({ token, user });
     } catch (error) {
-      alert(error.response?.data?.message || "Login failed");
+      onNotify?.({
+        type: "error",
+        title: "Sign in failed",
+        message: error.response?.data?.message || "Invalid email or password.",
+        actionLabel: "Try Again",
+      });
     }
   };
 
@@ -27,17 +32,17 @@ export default function LoginForm({ onSuccess, onForgotPassword }) {
         {...register("email", { required: true })}
         type="email"
         placeholder="Email"
-        className="w-full border rounded px-3 py-2"
+        className="w-full border rounded px-3 py-2 text-sm sm:text-base"
       />
 
       <input
         {...register("password", { required: true })}
         type="password"
         placeholder="Password"
-        className="w-full border rounded px-3 py-2"
+        className="w-full border rounded px-3 py-2 text-sm sm:text-base"
       />
 
-      <button className="w-full bg-indigo-600 text-white py-2 rounded">
+      <button className="w-full bg-indigo-600 text-white py-2 rounded text-sm sm:text-base">
         Sign In
       </button>
 

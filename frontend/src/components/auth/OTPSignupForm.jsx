@@ -5,7 +5,7 @@ import {
   verifySignupOTP,
 } from "../../services/authService";
 
-export default function OTPSignupForm({ onSuccess }) {
+export default function OTPSignupForm({ onSuccess, onNotify }) {
   const [step, setStep] = useState("form"); // form | otp
   const [emailForOTP, setEmailForOTP] = useState("");
 
@@ -35,8 +35,20 @@ export default function OTPSignupForm({ onSuccess }) {
       await requestSignupOTP(payload);
       setEmailForOTP(data.email);
       setStep("otp");
+      onNotify?.({
+        type: "info",
+        title: "OTP sent",
+        message: `We sent a code to ${data.email}. Please enter it to continue.`,
+        actionLabel: "OK",
+        autoCloseMs: 2500,
+      });
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to send OTP");
+      onNotify?.({
+        type: "error",
+        title: "Failed to send OTP",
+        message: err.response?.data?.message || "Please try again.",
+        actionLabel: "OK",
+      });
     }
   };
 
@@ -47,10 +59,14 @@ export default function OTPSignupForm({ onSuccess }) {
         email: emailForOTP,
         otp: data.otp,
       });
-      alert("Signup successful! Please login.");
       onSuccess();
     } catch (err) {
-      alert(err.response?.data?.message || "Invalid OTP");
+      onNotify?.({
+        type: "error",
+        title: "Invalid OTP",
+        message: err.response?.data?.message || "Please check and try again.",
+        actionLabel: "OK",
+      });
     }
   };
 
@@ -58,7 +74,7 @@ export default function OTPSignupForm({ onSuccess }) {
     <div className="space-y-6">
       {step === "form" ? (
         <form onSubmit={handleSubmit(handleSignup)} className="space-y-4">
-          <h2 className="text-2xl font-semibold text-gray-800">
+          <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">
             Create an account
           </h2>
 
@@ -66,7 +82,7 @@ export default function OTPSignupForm({ onSuccess }) {
           <input
             {...register("name", { required: "Name is required" })}
             placeholder="Full Name"
-            className="w-full border rounded-lg px-4 py-2"
+            className="w-full border rounded-lg px-4 py-2 text-sm sm:text-base"
           />
 
           {/* Email */}
@@ -74,7 +90,7 @@ export default function OTPSignupForm({ onSuccess }) {
             {...register("email", { required: "Email is required" })}
             type="email"
             placeholder="Email Address"
-            className="w-full border rounded-lg px-4 py-2"
+            className="w-full border rounded-lg px-4 py-2 text-sm sm:text-base"
           />
 
           {/* Password */}
@@ -85,13 +101,13 @@ export default function OTPSignupForm({ onSuccess }) {
             })}
             type="password"
             placeholder="Password"
-            className="w-full border rounded-lg px-4 py-2"
+            className="w-full border rounded-lg px-4 py-2 text-sm sm:text-base"
           />
 
           {/* Role */}
           <select
             {...register("role")}
-            className="w-full border rounded-lg px-4 py-2 bg-white"
+            className="w-full border rounded-lg px-4 py-2 bg-white text-sm sm:text-base"
           >
             <option value="citizen">Citizen</option>
             <option value="official">Official</option>
@@ -100,35 +116,35 @@ export default function OTPSignupForm({ onSuccess }) {
           {/* Location */}
           
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <input
               {...register("city", { required: true })}
               placeholder="City"
-              className="border rounded-lg px-3 py-2"
+              className="border rounded-lg px-3 py-2 text-sm sm:text-base"
             />
             <input
               {...register("district", { required: true })}
               placeholder="District"
-              className="border rounded-lg px-3 py-2"
+              className="border rounded-lg px-3 py-2 text-sm sm:text-base"
             />
             <input
               {...register("state", { required: true })}
               placeholder="State"
-              className="border rounded-lg px-3 py-2"
+              className="border rounded-lg px-3 py-2 text-sm sm:text-base"
             />
           </div>
 
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-indigo-600 text-white py-2 rounded-lg"
+            className="w-full bg-indigo-600 text-white py-2 rounded-lg text-sm sm:text-base"
           >
             {isSubmitting ? "Sending OTP..." : "Sign Up"}
           </button>
         </form>
       ) : (
         <form onSubmit={handleSubmit(handleOTPVerify)} className="space-y-4">
-          <h2 className="text-2xl font-semibold text-gray-800">
+          <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">
             Verify OTP
           </h2>
 
@@ -139,13 +155,13 @@ export default function OTPSignupForm({ onSuccess }) {
           <input
             {...register("otp", { required: true })}
             placeholder="Enter OTP"
-            className="w-full border rounded-lg px-4 py-2 text-center tracking-widest"
+            className="w-full border rounded-lg px-4 py-2 text-center tracking-widest text-sm sm:text-base"
           />
 
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-green-600 text-white py-2 rounded-lg"
+            className="w-full bg-green-600 text-white py-2 rounded-lg text-sm sm:text-base"
           >
             Verify OTP
           </button>

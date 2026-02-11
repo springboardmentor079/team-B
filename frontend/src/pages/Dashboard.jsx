@@ -86,7 +86,7 @@ export default function Dashboard() {
       />
 
       {/* STATS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8 shrink-0">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mt-6 md:mt-8 shrink-0">
 
         {/* MY PETITIONS */}
         <Card
@@ -107,7 +107,7 @@ export default function Dashboard() {
         {/* ACTIVE NEAR YOU */}
         <Card
           className="cursor-pointer hover:shadow-md transition"
-          onClick={() => navigate("/petitions")}
+          onClick={() => navigate("/petitions?status=active")}
         >
           <div className="flex items-center gap-4">
             <div className="p-3 rounded-lg bg-green-100 text-green-600">
@@ -146,8 +146,8 @@ export default function Dashboard() {
       </div>
 
       {/* PETITIONS LIST (ONLY THIS SCROLLS) */}
-      <section className="mt-8 flex flex-col flex-1 overflow-hidden">
-        <h2 className="text-xl font-semibold mb-4 shrink-0">
+      <section className="mt-6 md:mt-8 flex flex-col flex-1 overflow-hidden">
+        <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4 shrink-0">
           Active Petitions Near You
         </h2>
 
@@ -159,13 +159,14 @@ export default function Dashboard() {
               No petitions found in your area.
             </p>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
               {petitions.map((p) => (
                 <PetitionCard
                   key={p._id}
                   _id={p._id}
                   title={p.title}
                   category={p.category}
+                  description={p.description}
                   location={
                     p.location?.jurisdiction?.city ||
                     p.location?.address ||

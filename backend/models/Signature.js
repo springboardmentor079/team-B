@@ -5,4 +5,7 @@ const signatureSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
 }, { timestamps: true });
 
+// Ensure a user can sign a petition only once
+signatureSchema.index({ petition: 1, user: 1 }, { unique: true });
+
 module.exports = mongoose.model('Signature', signatureSchema);

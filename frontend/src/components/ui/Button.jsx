@@ -4,7 +4,7 @@ export default function Button({
   ...props
 }) {
   const base =
-    "px-4 py-2 rounded-lg font-medium transition text-sm";
+    "inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition text-sm whitespace-nowrap";
 
   const variants = {
     primary: "bg-blue-600 text-white hover:bg-blue-700",

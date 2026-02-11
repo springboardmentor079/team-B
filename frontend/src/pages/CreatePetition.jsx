@@ -1,4 +1,5 @@
 import { useForm } from "react-hook-form";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/ui/PageHeader";
 import Card from "../components/ui/Card";
@@ -13,6 +14,7 @@ export default function CreatePetition() {
   } = useForm();
 
   const navigate = useNavigate();
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const onSubmit = async (data) => {
     try {
@@ -26,21 +28,21 @@ export default function CreatePetition() {
         location: data.location.trim()
       });
 
-      navigate("/dashboard");
+      setShowSuccess(true);
     } catch (error) {
       alert(error.response?.data?.message || "Failed to create petition");
     }
   };
 
   return (
-    <div className="h-full flex items-center justify-center">
+    <div className="h-full flex items-start sm:items-center justify-center px-4 py-6">
       <div className="w-full max-w-2xl">
         <PageHeader
           title="Create a New Petition"
           subtitle="Raise an issue and make your voice heard"
         />
 
-        <Card className="mt-6">
+        <Card className="mt-6 p-4 sm:p-6">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
 
             {/* Title */}
@@ -113,15 +115,16 @@ export default function CreatePetition() {
             </div>
 
             {/* Actions */}
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row sm:justify-end gap-3 pt-4">
               <Button
                 type="button"
                 variant="secondary"
                 onClick={() => navigate(-1)}
+                className="w-full sm:w-auto"
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
                 {isSubmitting ? "Creating..." : "Create Petition"}
               </Button>
             </div>
@@ -129,6 +132,32 @@ export default function CreatePetition() {
           </form>
         </Card>
       </div>
+
+      {/* Success Modal */}
+      {showSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-gray-100 p-6 text-center">
+            <div className="w-12 h-12 mx-auto rounded-full bg-green-50 text-green-600 flex items-center justify-center font-semibold">
+              ✓
+            </div>
+            <h3 className="mt-4 text-lg font-semibold text-gray-900">
+              Petition created successfully
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Your petition has been submitted and will appear shortly.
+            </p>
+            <button
+              onClick={() => {
+                setShowSuccess(false);
+                navigate("/dashboard");
+              }}
+              className="mt-6 w-full px-4 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition"
+            >
+              Go to Dashboard
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
