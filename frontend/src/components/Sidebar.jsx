@@ -1,25 +1,51 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   FileText,
   BarChart3,
   Users,
+  PieChart,
+  ShieldCheck,
   Settings,
   LogOut
 } from "lucide-react";
 
-const navItems = [
-  { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-  { name: "Petitions", path: "/petitions", icon: FileText },
-  { name: "Polls", path: "/polls", icon: BarChart3 },
-  { name: "Officials", path: "/officials", icon: Users },
-  { name: "Settings", path: "/settings", icon: Settings },
-];
-
 export default function Sidebar({ isOpen = false, onClose }) {
   const navigate = useNavigate();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [userRole, setUserRole] = useState("");
+
+  useEffect(() => {
+    const rawUser = localStorage.getItem("user");
+    if (!rawUser) return;
+
+    try {
+      const parsed = JSON.parse(rawUser);
+      setUserRole(parsed?.role || "");
+    } catch (error) {
+      console.error("Invalid user in localStorage", error);
+      setUserRole("");
+    }
+  }, []);
+
+  const navItems = useMemo(() => {
+    const items = [
+      { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+      { name: "Petitions", path: "/petitions", icon: FileText },
+      { name: "Polls", path: "/polls", icon: BarChart3 },
+      userRole === "official"
+        ? { name: "Reports", path: "/reports", icon: PieChart }
+        : { name: "Officials", path: "/officials", icon: Users },
+    ];
+
+    if (userRole === "official") {
+      items.push({ name: "Verification Status", path: "/verification-status", icon: ShieldCheck });
+    }
+
+    items.push({ name: "Settings", path: "/settings", icon: Settings });
+    return items;
+  }, [userRole]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");

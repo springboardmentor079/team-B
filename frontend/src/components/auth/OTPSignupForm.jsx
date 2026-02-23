@@ -137,7 +137,7 @@ export default function OTPSignupForm({ onSuccess, onNotify }) {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-indigo-600 text-white py-2 rounded-lg text-sm sm:text-base"
+            className="w-full bg-slate-700 text-white py-2 rounded-lg text-sm sm:text-base hover:bg-slate-800 transition"
           >
             {isSubmitting ? "Sending OTP..." : "Sign Up"}
           </button>
@@ -161,7 +161,7 @@ export default function OTPSignupForm({ onSuccess, onNotify }) {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-green-600 text-white py-2 rounded-lg text-sm sm:text-base"
+            className="w-full bg-cyan-700 text-white py-2 rounded-lg text-sm sm:text-base hover:bg-cyan-800 transition"
           >
             Verify OTP
           </button>

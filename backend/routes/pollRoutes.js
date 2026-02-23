@@ -27,10 +27,13 @@ router.post(
 /* ---------- VOTE ---------- */
 router.post('/:id/vote', pollController.voteOnPoll);
 
+/* ---------- OFFICIAL STATUS UPDATE ---------- */
+router.patch('/:id/status', pollController.updatePollStatus);
+router.delete('/:id', pollController.deletePoll);
+
 /* ❌ Disable until implemented */
 // router.get('/:id/my-vote', pollController.getUserVote);
 // router.put('/:id', pollController.updatePoll);
-// router.delete('/:id', pollController.deletePoll);
 // router.get('/:id/stats', pollController.getPollStats);
 
 module.exports = router;

@@ -119,7 +119,7 @@ exports.verifyRegistrationOTP = async (req, res) => {
       password: hashedPassword,
       role: tempData.role,
       emailVerified: true, // Since they verified via OTP
-      verificationStatus: tempData.role === 'official' ? 'pending' : 'verified'
+      verificationStatus: tempData.role === 'official' ? 'unverified' : 'verified'
     };
 
     // Handle location data if provided
@@ -219,7 +219,7 @@ exports.register = async (req, res) => {
       password: hashedPassword,
       role,
       emailVerificationToken,
-      verificationStatus: role === 'official' ? 'pending' : 'unverified'
+      verificationStatus: 'unverified'
     };
 
     // Handle location data if provided

@@ -1,4 +1,4 @@
-import { Bell, ChevronDown, MapPin, Menu, Mail, Shield } from "lucide-react";
+import { ChevronDown, MapPin, Menu, Mail, Shield } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 export default function Topbar({ onMenuClick }) {
@@ -6,18 +6,50 @@ export default function Topbar({ onMenuClick }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
 
-  useEffect(() => {
+  const loadUserFromStorage = () => {
     const storedUser = localStorage.getItem("user");
-
-    if (!storedUser) return;
+    if (!storedUser) {
+      setUser(null);
+      return;
+    }
 
     try {
       setUser(JSON.parse(storedUser));
     } catch (err) {
       console.error("Invalid user data in localStorage");
       localStorage.removeItem("user");
+      setUser(null);
     }
+  };
+
+  useEffect(() => {
+    loadUserFromStorage();
   }, []);
+
+  useEffect(() => {
+    const handleStorageSync = () => {
+      loadUserFromStorage();
+    };
+
+    window.addEventListener("storage", handleStorageSync);
+    window.addEventListener("user-updated", handleStorageSync);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageSync);
+      window.removeEventListener("user-updated", handleStorageSync);
+    };
+  }, []);
+
+  const verificationLabelMap = {
+    verified: "Verification Complete",
+    pending: "Verification Pending",
+    rejected: "Verification Rejected",
+    unverified: "Verification Not Started",
+  };
+
+  const verificationStatusText =
+    verificationLabelMap[user?.verificationStatus] || "Verification Not Started";
+  const showVerificationStatus = user?.role === "official";
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -50,14 +82,6 @@ export default function Topbar({ onMenuClick }) {
       {/* Right */}
       <div className="flex items-center gap-4 relative" ref={menuRef}>
 
-        {/* Notifications */}
-        <button className="relative p-2 rounded-lg hover:bg-gray-100">
-          <Bell size={20} className="text-gray-600" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
-        </button>
-
-        <div className="h-6 w-px bg-gray-200"></div>
-
         {/* User */}
         <button
           type="button"
@@ -78,6 +102,11 @@ export default function Topbar({ onMenuClick }) {
             <span className="text-xs text-gray-500 capitalize">
               {user?.role || "role"}
             </span>
+            {showVerificationStatus ? (
+              <span className="text-[11px] text-gray-500">
+                {verificationStatusText}
+              </span>
+            ) : null}
           </div>
 
           <ChevronDown size={16} className="text-gray-500" />
@@ -106,12 +135,14 @@ export default function Topbar({ onMenuClick }) {
                   {user?.email || "No email"}
                 </span>
               </div>
-              <div className="flex items-start gap-2">
-                <Shield size={16} className="mt-0.5 text-gray-400" />
-                <span className="capitalize">
-                  {user?.verificationStatus || "unverified"}
-                </span>
-              </div>
+              {showVerificationStatus ? (
+                <div className="flex items-start gap-2">
+                  <Shield size={16} className="mt-0.5 text-gray-400" />
+                  <span>
+                    {verificationStatusText}
+                  </span>
+                </div>
+              ) : null}
               <div className="flex items-start gap-2">
                 <MapPin size={16} className="mt-0.5 text-gray-400" />
                 <span>

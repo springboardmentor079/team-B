@@ -1,11 +1,14 @@
 const categories = [
   { label: "Category: All", value: "all" },
+  { label: "Local Government", value: "local-government" },
   { label: "Environment", value: "environment" },
   { label: "Infrastructure", value: "infrastructure" },
   { label: "Education", value: "education" },
-  { label: "Public Safety", value: "public safety" },
+  { label: "Public Safety", value: "public-safety" },
   { label: "Healthcare", value: "healthcare" },
+  { label: "Transportation", value: "transportation" },
   { label: "Housing", value: "housing" },
+  { label: "Other", value: "other" },
 ];
 
 export default function CategoryFilter({

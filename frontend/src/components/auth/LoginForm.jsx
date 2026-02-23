@@ -42,14 +42,14 @@ export default function LoginForm({ onSuccess, onForgotPassword, onNotify }) {
         className="w-full border rounded px-3 py-2 text-sm sm:text-base"
       />
 
-      <button className="w-full bg-indigo-600 text-white py-2 rounded text-sm sm:text-base">
+      <button className="w-full bg-slate-700 text-white py-2 rounded text-sm sm:text-base hover:bg-slate-800 transition">
         Sign In
       </button>
 
       <button
         type="button"
         onClick={onForgotPassword}
-        className="text-sm text-indigo-600 text-center w-full"
+        className="text-sm text-cyan-700 text-center w-full"
       >
         Forgot password?
       </button>

@@ -69,6 +69,11 @@ const validateReportUpdate = [
 
 // Public routes (no authentication required)
 router.get('/', reportController.getReports);
+
+// Milestone 4 monthly civic engagement reports (officials only)
+router.get('/monthly/export', authenticateToken, reportController.exportMonthlyReport);
+router.get('/petitions/status-monthly', authenticateToken, reportController.getPetitionStatusMonthly);
+
 router.get('/:id', reportController.getReportById);
 
 // Protected routes (authentication required)

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, X } from "lucide-react";
 import axios from "axios";
@@ -15,6 +15,20 @@ export default function CreatePoll() {
   const [closeDate, setCloseDate] = useState("");
   const [options, setOptions] = useState(["", ""]);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [userRole, setUserRole] = useState("");
+  const [verificationStatus, setVerificationStatus] = useState("unverified");
+
+  useEffect(() => {
+    const rawUser = localStorage.getItem("user");
+    if (!rawUser) return;
+    try {
+      const parsed = JSON.parse(rawUser);
+      setUserRole(parsed?.role || "");
+      setVerificationStatus(parsed?.verificationStatus || "unverified");
+    } catch (error) {
+      console.error("Failed to parse user", error);
+    }
+  }, []);
 
   /* ---------------- OPTIONS HANDLERS ---------------- */
   const addOption = () => {
@@ -73,6 +87,36 @@ const handleSubmit = async (e) => {
 
   return (
     <Container className="h-full flex flex-col overflow-y-auto">
+      {userRole && userRole !== "official" ? (
+        <div className="max-w-xl mx-auto mt-8 w-full px-4">
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 text-center">
+            <h3 className="text-lg font-semibold text-gray-900">Access Restricted</h3>
+            <p className="text-sm text-gray-600 mt-2">
+              Only officials can create polls.
+            </p>
+            <div className="mt-4">
+              <Button onClick={() => navigate("/polls")}>Back to Polls</Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {userRole === "official" && verificationStatus !== "verified" ? (
+        <div className="max-w-xl mx-auto mt-8 w-full px-4">
+          <div className="bg-white border border-amber-200 rounded-xl shadow-sm p-6 text-center">
+            <h3 className="text-lg font-semibold text-gray-900">Verification Required</h3>
+            <p className="text-sm text-gray-600 mt-2">
+              Your official account is not verified. Submit Government ID in Verification Status to create polls.
+            </p>
+            <div className="mt-4">
+              <Button onClick={() => navigate("/verification-status")}>Go to Verification Status</Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {userRole && (userRole !== "official" || verificationStatus !== "verified") ? null : (
+      <>
       {/* PAGE HEADER */}
       <PageHeader
         title="Create Poll"
@@ -230,6 +274,8 @@ const handleSubmit = async (e) => {
             </button>
           </div>
         </div>
+      )}
+      </>
       )}
     </Container>
   );

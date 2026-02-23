@@ -1,11 +1,101 @@
 const Petition = require('../models/Petition');
 const Signature = require('../models/Signature');
 const User = require('../models/User');
+const { validationResult } = require('express-validator');
 
 /**
  * Get all petitions with filtering and pagination
  */
 const mongoose = require("mongoose");
+
+const resolveOfficialLocality = (user) => {
+  const city = user?.location?.jurisdiction?.city;
+  const state = user?.location?.jurisdiction?.state;
+  const address = user?.location?.address;
+
+  if (!city && !state && !address) {
+    return null;
+  }
+
+  return { city, state, address };
+};
+
+const ensureVerifiedOfficial = (req, res) => {
+  if (req.user.role !== 'official') {
+    return res.status(403).json({ message: 'Only officials can perform this action' });
+  }
+
+  if (req.user.verificationStatus !== 'verified') {
+    return res.status(403).json({
+      message: 'Your official account is not verified yet. Submit your Government ID in Verification Status.',
+      code: 'OFFICIAL_VERIFICATION_REQUIRED',
+      verificationStatus: req.user.verificationStatus
+    });
+  }
+
+  return null;
+};
+
+const buildLocalityFilter = (locality) => {
+  const conditions = [];
+
+  if (locality.city) {
+    conditions.push({
+      "location.jurisdiction.city": { $regex: `^${locality.city}$`, $options: "i" }
+    });
+    conditions.push({
+      "location.address": { $regex: locality.city, $options: "i" }
+    });
+  }
+
+  if (locality.state) {
+    conditions.push({
+      "location.jurisdiction.state": { $regex: `^${locality.state}$`, $options: "i" }
+    });
+  }
+
+  if (locality.address) {
+    conditions.push({
+      "location.address": { $regex: locality.address, $options: "i" }
+    });
+  }
+
+  return conditions.length ? { $or: conditions } : {};
+};
+
+const buildUserLocalityFilter = (locality) => {
+  const conditions = [];
+
+  if (locality.city) {
+    conditions.push({
+      "location.jurisdiction.city": { $regex: `^${locality.city}$`, $options: "i" }
+    });
+    conditions.push({
+      "location.address": { $regex: locality.city, $options: "i" }
+    });
+  }
+
+  if (locality.state) {
+    conditions.push({
+      "location.jurisdiction.state": { $regex: `^${locality.state}$`, $options: "i" }
+    });
+  }
+
+  if (locality.address) {
+    conditions.push({
+      "location.address": { $regex: locality.address, $options: "i" }
+    });
+  }
+
+  return conditions.length ? { $or: conditions } : {};
+};
+
+const TITLE_MAX_WORDS = 12;
+
+const countWords = (value = "") => {
+  const text = String(value).trim();
+  return text ? text.split(/\s+/).length : 0;
+};
 
 exports.getPetitions = async (req, res) => {
   try {
@@ -22,15 +112,22 @@ exports.getPetitions = async (req, res) => {
     } = req.query;
 
     const filter = {};
+    const statusAliasMap = {
+      approved: "completed",
+      rejected: "closed",
+    };
 
     /* CATEGORY */
     if (category && category !== "all") {
-      filter.category = { $regex: `^${category}$`, $options: "i" };
+      const normalized = category.trim().replace(/\s+/g, " ");
+      const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const flexiblePattern = escaped.replace(/[-\s]+/g, "[-\\s]*");
+      filter.category = { $regex: `^${flexiblePattern}$`, $options: "i" };
     }
 
     /* STATUS */
     if (status && status !== "all") {
-      filter.status = status;
+      filter.status = statusAliasMap[status] || status;
     }
 
     /* LOCATION (CITY) */
@@ -213,6 +310,12 @@ exports.getPetitionById = async (req, res) => {
  */
 exports.createPetition = async (req, res) => {
   try {
+    if (req.user.role !== 'citizen') {
+      return res.status(403).json({
+        message: 'Only citizens can create petitions'
+      });
+    }
+
     const { title, description, category, location, target_signatures, tags } = req.body;
 
     // Input validation
@@ -223,6 +326,12 @@ exports.createPetition = async (req, res) => {
           title: !title ? 'Title is required' : null,
           description: !description ? 'Description is required' : null
         }
+      });
+    }
+
+    if (countWords(title) > TITLE_MAX_WORDS) {
+      return res.status(400).json({
+        message: `Title must not exceed ${TITLE_MAX_WORDS} words`
       });
     }
 
@@ -337,6 +446,160 @@ exports.signPetition = async (req, res) => {
 };
 
 /**
+ * Get petitions in official's locality
+ */
+exports.getLocalityPetitions = async (req, res) => {
+  try {
+    if (req.user.role !== 'official') {
+      return res.status(403).json({ message: 'Only officials can access locality petitions' });
+    }
+
+    const { status = 'all', page = 1, limit = 20 } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const official = await User.findById(req.user.id).select('location');
+    const locality = resolveOfficialLocality(official);
+
+    if (!locality) {
+      return res.status(400).json({ message: 'Set your location before viewing locality petitions' });
+    }
+
+    const filter = buildLocalityFilter(locality);
+    if (status !== 'all') {
+      filter.status = status;
+    }
+
+    const petitions = await Petition.aggregate([
+      { $match: filter },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'createdBy',
+          foreignField: '_id',
+          as: 'creator'
+        }
+      },
+      {
+        $lookup: {
+          from: 'signatures',
+          localField: '_id',
+          foreignField: 'petition',
+          as: 'signatures'
+        }
+      },
+      {
+        $addFields: {
+          signature_count: { $size: '$signatures' },
+          creator_name: { $arrayElemAt: ['$creator.name', 0] }
+        }
+      },
+      {
+        $project: {
+          creator: 0,
+          signatures: 0
+        }
+      },
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: Number(limit) }
+    ]);
+
+    const total = await Petition.countDocuments(filter);
+
+    res.json({
+      locality: {
+        city: locality.city || null,
+        state: locality.state || null
+      },
+      petitions,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        totalPages: Math.ceil(total / Number(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Get locality petitions error:', error);
+    res.status(500).json({ message: 'Failed to fetch locality petitions', error: error.message });
+  }
+};
+
+/**
+ * Get officials in user's locality and their petition remarks
+ */
+exports.getLocalityOfficialsWithRemarks = async (req, res) => {
+  try {
+    const currentUser = await User.findById(req.user.id).select('location');
+    const locality = resolveOfficialLocality(currentUser);
+
+    if (!locality) {
+      return res.status(400).json({ message: 'Set your location before viewing locality officials' });
+    }
+
+    const officialFilter = {
+      role: 'official',
+      ...buildUserLocalityFilter(locality)
+    };
+
+    const officials = await User.find(officialFilter)
+      .select('name email verificationStatus location')
+      .sort({ name: 1 });
+
+    const localityPetitions = await Petition.find(buildLocalityFilter(locality))
+      .select('title officialResponses');
+
+    const remarksByOfficial = {};
+
+    for (const petition of localityPetitions) {
+      for (const response of petition.officialResponses || []) {
+        const officialId = response.official?.toString();
+        if (!officialId) continue;
+
+        if (!remarksByOfficial[officialId]) {
+          remarksByOfficial[officialId] = [];
+        }
+
+        remarksByOfficial[officialId].push({
+          petitionId: petition._id,
+          petitionTitle: petition.title,
+          comment: response.comment,
+          statusAfterUpdate: response.statusAfterUpdate,
+          createdAt: response.createdAt
+        });
+      }
+    }
+
+    const officialsWithRemarks = officials.map((official) => {
+      const officialId = official._id.toString();
+      const remarks = (remarksByOfficial[officialId] || []).sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      );
+
+      return {
+        id: official._id,
+        name: official.name,
+        email: official.email,
+        verificationStatus: official.verificationStatus,
+        location: official.location,
+        remarks
+      };
+    });
+
+    res.json({
+      locality: {
+        city: locality.city || null,
+        state: locality.state || null
+      },
+      officials: officialsWithRemarks
+    });
+  } catch (error) {
+    console.error('Get locality officials with remarks error:', error);
+    res.status(500).json({ message: 'Failed to fetch locality officials', error: error.message });
+  }
+};
+
+/**
  * Check if user has signed a petition
  */
 exports.getUserSignature = async (req, res) => {
@@ -378,6 +641,12 @@ exports.updatePetition = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to update this petition' });
     }
 
+    if (title && countWords(title) > TITLE_MAX_WORDS) {
+      return res.status(400).json({
+        message: `Title must not exceed ${TITLE_MAX_WORDS} words`
+      });
+    }
+
     // Update fields
     const updateData = {};
     if (title) updateData.title = title;
@@ -416,9 +685,40 @@ exports.deletePetition = async (req, res) => {
       return res.status(404).json({ message: 'Petition not found' });
     }
 
-    // Check if user is the creator or admin
-    if (petition.createdBy.toString() !== req.user.id && req.user.role !== 'admin') {
+    const isCreator = petition.createdBy.toString() === req.user.id;
+    const isOfficial = req.user.role === 'official';
+    const isAdmin = req.user.role === 'admin';
+
+    if (isOfficial && req.user.verificationStatus !== 'verified') {
+      return res.status(403).json({
+        message: 'Your official account is not verified yet. Submit your Government ID in Verification Status.',
+        code: 'OFFICIAL_VERIFICATION_REQUIRED',
+        verificationStatus: req.user.verificationStatus
+      });
+    }
+
+    if (!isCreator && !isOfficial && !isAdmin) {
       return res.status(403).json({ message: 'Not authorized to delete this petition' });
+    }
+
+    // Officials can delete only petitions in their locality
+    if (isOfficial && !isCreator) {
+      const official = await User.findById(req.user.id).select('location');
+      const locality = resolveOfficialLocality(official);
+
+      if (!locality) {
+        return res.status(400).json({ message: 'Set your location before deleting petitions' });
+      }
+
+      const localityFilter = buildLocalityFilter(locality);
+      const withinLocality = await Petition.exists({
+        _id: petition._id,
+        ...localityFilter
+      });
+
+      if (!withinLocality) {
+        return res.status(403).json({ message: 'You can only delete petitions in your locality' });
+      }
     }
 
     // Delete associated signatures
@@ -554,5 +854,70 @@ exports.getPetitionStats = async (req, res) => {
   } catch (error) {
     console.error('Get petition stats error:', error);
     res.status(500).json({ message: 'Failed to fetch petition statistics', error: error.message });
+  }
+};
+
+/**
+ * Respond to petition (officials only, locality-limited)
+ */
+exports.respondToPetition = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const permissionError = ensureVerifiedOfficial(req, res);
+    if (permissionError) {
+      return permissionError;
+    }
+
+    const { id } = req.params;
+    const { comment, status } = req.body;
+
+    const petition = await Petition.findById(id);
+    if (!petition) {
+      return res.status(404).json({ message: 'Petition not found' });
+    }
+
+    const official = await User.findById(req.user.id).select('location');
+    const locality = resolveOfficialLocality(official);
+    if (!locality) {
+      return res.status(400).json({ message: 'Set your location before responding to petitions' });
+    }
+
+    const localityFilter = buildLocalityFilter(locality);
+    const withinLocality = await Petition.exists({
+      _id: petition._id,
+      ...localityFilter
+    });
+
+    if (!withinLocality) {
+      return res.status(403).json({ message: 'You can only respond to petitions in your locality' });
+    }
+
+    if (status) {
+      petition.status = status;
+    }
+
+    petition.officialResponses.push({
+      official: req.user.id,
+      comment: comment.trim(),
+      statusAfterUpdate: petition.status
+    });
+
+    await petition.save();
+    await petition.populate('officialResponses.official', 'name role');
+
+    res.json({
+      message: 'Official response added successfully',
+      petition
+    });
+  } catch (error) {
+    console.error('Respond to petition error:', error);
+    res.status(500).json({ message: 'Failed to add official response', error: error.message });
   }
 };

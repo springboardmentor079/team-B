@@ -1,12 +1,36 @@
 const Poll = require("../models/Poll");
+const User = require("../models/User");
+
+const ensureVerifiedOfficial = (req, res) => {
+  if (req.user.role !== "official") {
+    return res.status(403).json({ message: "Only officials can perform this action" });
+  }
+
+  if (req.user.verificationStatus !== "verified") {
+    return res.status(403).json({
+      message: "Your official account is not verified yet. Submit your Government ID in Verification Status.",
+      code: "OFFICIAL_VERIFICATION_REQUIRED",
+      verificationStatus: req.user.verificationStatus,
+    });
+  }
+
+  return null;
+};
 
 /**
  * GET /api/polls
  */
 exports.getPolls = async (req, res) => {
   try {
-    const polls = await Poll.find()
-      .populate("createdBy", "name")
+    const { location } = req.query;
+
+    const filter = {};
+    if (location && location.trim()) {
+      filter.targetLocation = { $regex: location.trim(), $options: "i" };
+    }
+
+    const polls = await Poll.find(filter)
+      .populate("createdBy", "name role")
       .sort({ createdAt: -1 });
 
     const userId = req.user?.id;
@@ -41,6 +65,7 @@ exports.getPolls = async (req, res) => {
 
         createdAt: poll.createdAt,
         createdBy: poll.createdBy?.name || "Anonymous",
+        createdByRole: poll.createdBy?.role || null,
         createdById,
         hasVoted,
         isMine,
@@ -80,6 +105,11 @@ exports.getPollById = async (req, res) => {
  */
 exports.createPoll = async (req, res) => {
   try {
+    const permissionError = ensureVerifiedOfficial(req, res);
+    if (permissionError) {
+      return permissionError;
+    }
+
     const {
       title,
       description,
@@ -129,10 +159,20 @@ exports.voteOnPoll = async (req, res) => {
   try {
     const { optionIndex } = req.body;
     const userId = req.user.id;
+    const voterRole = req.user.role;
+
+    if (voterRole !== "citizen") {
+      return res.status(403).json({ message: "Only citizens can vote on polls" });
+    }
 
     const poll = await Poll.findById(req.params.id);
     if (!poll) {
       return res.status(404).json({ message: "Poll not found" });
+    }
+
+    const pollCreator = await User.findById(poll.createdBy).select("role");
+    if (!pollCreator || pollCreator.role !== "official") {
+      return res.status(403).json({ message: "Citizens can vote only on polls created by officials" });
     }
 
     if (poll.status === "closed") {
@@ -162,5 +202,75 @@ exports.voteOnPoll = async (req, res) => {
   } catch (error) {
     console.error("Vote error:", error);
     res.status(500).json({ message: "Failed to vote" });
+  }
+};
+
+/**
+ * PATCH /api/polls/:id/status
+ */
+exports.updatePollStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    if (!["active", "closed"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    const permissionError = ensureVerifiedOfficial(req, res);
+    if (permissionError) {
+      return permissionError;
+    }
+
+    const poll = await Poll.findById(req.params.id);
+    if (!poll) {
+      return res.status(404).json({ message: "Poll not found" });
+    }
+
+    // Locality check for officials
+    const official = await User.findById(req.user.id).select("location");
+    const city = official?.location?.jurisdiction?.city || official?.location?.address;
+
+    if (city) {
+      const isSameLocality =
+        (poll.targetLocation || "").toLowerCase().includes(city.toLowerCase());
+      if (!isSameLocality) {
+        return res.status(403).json({ message: "You can only manage polls in your locality" });
+      }
+    }
+
+    poll.status = status;
+    await poll.save();
+
+    res.json({
+      message: `Poll marked as ${status}`,
+      poll,
+    });
+  } catch (error) {
+    console.error("Update poll status error:", error);
+    res.status(500).json({ message: "Failed to update poll status" });
+  }
+};
+
+/**
+ * DELETE /api/polls/:id
+ */
+exports.deletePoll = async (req, res) => {
+  try {
+    const permissionError = ensureVerifiedOfficial(req, res);
+    if (permissionError) {
+      return permissionError;
+    }
+
+    const poll = await Poll.findById(req.params.id);
+    if (!poll) {
+      return res.status(404).json({ message: "Poll not found" });
+    }
+
+    await Poll.findByIdAndDelete(req.params.id);
+
+    return res.json({ message: "Poll deleted successfully" });
+  } catch (error) {
+    console.error("Delete poll error:", error);
+    return res.status(500).json({ message: "Failed to delete poll" });
   }
 };

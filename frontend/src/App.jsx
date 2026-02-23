@@ -9,6 +9,10 @@ import ResetPasswordForm from "./components/auth/ResetPasswordForm";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import Polls from "./pages/Polls";
 import CreatePoll from "./pages/CreatePoll";
+import Officials from "./pages/Officials";
+import Reports from "./pages/Reports";
+import Settings from "./pages/Settings";
+import VerificationStatus from "./pages/VerificationStatus";
 
 export default function App() {
   return (
@@ -42,6 +46,10 @@ export default function App() {
           <Route path="/create" element={<CreatePetition />} />
           <Route path="/polls" element={<Polls />} />
           <Route path="/polls/create" element={<CreatePoll />} />
+          <Route path="/officials" element={<Officials />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/verification-status" element={<VerificationStatus />} />
+          <Route path="/settings" element={<Settings />} />
 
         </Route>
 

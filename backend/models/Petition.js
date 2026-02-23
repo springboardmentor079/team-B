@@ -48,7 +48,29 @@ const petitionSchema = new mongoose.Schema({
       latitude: Number,
       longitude: Number
     }
-  }
+  },
+  officialResponses: [{
+    official: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    comment: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 1000
+    },
+    statusAfterUpdate: {
+      type: String,
+      enum: ['active', 'under_review', 'completed', 'closed'],
+      required: true
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }]
 }, { 
   timestamps: true,
   toJSON: { virtuals: true },

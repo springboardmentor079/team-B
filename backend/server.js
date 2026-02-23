@@ -12,10 +12,19 @@ const { securityHeaders, sanitizeInput } = require('./middleware/authMiddleware'
 app.use(securityHeaders);
 
 // CORS configuration
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:5173',
+  process.env.ADMIN_PANEL_URL || 'http://localhost:5050',
+];
+
 app.use(cors({
-  
-   origin: process.env.FRONTEND_URL,
-    credentials: true,
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   optionsSuccessStatus: 200
 }));
@@ -71,6 +80,7 @@ const petitionRoutes = require("./routes/petitionRoutes");
 const pollRoutes = require("./routes/pollRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/verification", verificationRoutes);
@@ -79,6 +89,7 @@ app.use("/api/petitions", petitionRoutes);
 app.use("/api/polls", pollRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/admin", adminRoutes);
 
 // API documentation endpoint
 app.get("/api", (req, res) => {

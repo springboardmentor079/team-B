@@ -18,3 +18,12 @@ export const createPetition = (data) =>
 
 export const getPetitions = (params) =>
   API.get("/petitions", { params });
+
+export const getLocalityPetitions = (params) =>
+  API.get("/petitions/locality", { params });
+
+export const respondToPetition = (petitionId, data) =>
+  API.post(`/petitions/${petitionId}/respond`, data);
+
+export const getLocalityOfficialsWithRemarks = () =>
+  API.get("/petitions/locality-officials");

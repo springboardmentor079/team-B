@@ -1,5 +1,5 @@
 import { useForm } from "react-hook-form";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/ui/PageHeader";
 import Card from "../components/ui/Card";
@@ -10,11 +10,26 @@ export default function CreatePetition() {
   const {
     register,
     handleSubmit,
-    formState: { isSubmitting }
+    watch,
+    formState: { errors, isSubmitting }
   } = useForm();
 
   const navigate = useNavigate();
   const [showSuccess, setShowSuccess] = useState(false);
+  const [userRole, setUserRole] = useState("");
+  const titleValue = watch("title", "");
+  const titleWordCount = titleValue.trim() ? titleValue.trim().split(/\s+/).length : 0;
+
+  useEffect(() => {
+    const rawUser = localStorage.getItem("user");
+    if (!rawUser) return;
+    try {
+      const parsed = JSON.parse(rawUser);
+      setUserRole(parsed?.role || "");
+    } catch (error) {
+      console.error("Failed to parse user", error);
+    }
+  }, []);
 
   const onSubmit = async (data) => {
     try {
@@ -37,6 +52,20 @@ export default function CreatePetition() {
   return (
     <div className="h-full flex items-start sm:items-center justify-center px-4 py-6">
       <div className="w-full max-w-2xl">
+        {userRole && userRole !== "citizen" ? (
+          <Card className="mt-6 p-6 text-center">
+            <h3 className="text-lg font-semibold text-gray-900">Access Restricted</h3>
+            <p className="text-sm text-gray-600 mt-2">
+              Only citizens can create petitions.
+            </p>
+            <div className="mt-4">
+              <Button onClick={() => navigate("/petitions")}>Back to Petitions</Button>
+            </div>
+          </Card>
+        ) : null}
+
+        {userRole && userRole !== "citizen" ? null : (
+        <>
         <PageHeader
           title="Create a New Petition"
           subtitle="Raise an issue and make your voice heard"
@@ -51,10 +80,23 @@ export default function CreatePetition() {
                 Petition Title
               </label>
               <input
-                {...register("title", { required: true })}
+                {...register("title", {
+                  required: "Title is required",
+                  validate: (value) =>
+                    (value.trim() ? value.trim().split(/\s+/).length : 0) <= 12 ||
+                    "Title must not exceed 12 words",
+                })}
                 className="w-full border rounded px-4 py-2"
                 placeholder="Give your petition a clear title"
               />
+              <div className="mt-1 flex items-center justify-between text-xs">
+                <span className={errors.title ? "text-red-600" : "text-gray-500"}>
+                  {errors.title?.message || "Maximum 12 words"}
+                </span>
+                <span className={titleWordCount > 12 ? "text-red-600" : "text-gray-500"}>
+                  {titleWordCount}/12 words
+                </span>
+              </div>
             </div>
 
             {/* Category + City */}
@@ -131,6 +173,8 @@ export default function CreatePetition() {
 
           </form>
         </Card>
+        </>
+        )}
       </div>
 
       {/* Success Modal */}

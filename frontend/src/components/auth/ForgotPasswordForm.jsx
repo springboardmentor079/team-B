@@ -89,7 +89,7 @@ export default function ForgotPasswordForm({ onBackToLogin, onNotify }) {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full bg-indigo-600 text-white py-2 rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-60"
+          className="w-full bg-slate-700 text-white py-2 rounded-lg font-medium hover:bg-slate-800 transition disabled:opacity-60"
         >
           {isLoading ? "Sending..." : "Send Reset Link"}
         </button>
@@ -98,7 +98,7 @@ export default function ForgotPasswordForm({ onBackToLogin, onNotify }) {
       {/* Back to login */}
       <button
         onClick={onBackToLogin}
-        className="mt-6 flex items-center justify-center gap-2 text-sm text-indigo-600 hover:underline w-full"
+        className="mt-6 flex items-center justify-center gap-2 text-sm text-cyan-700 hover:underline w-full"
       >
         <ArrowLeft size={16} />
         Back to login

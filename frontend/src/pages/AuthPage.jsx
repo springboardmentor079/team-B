@@ -52,11 +52,11 @@ export default function AuthPage() {
   }, [notify]);
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center px-4 py-6">
+    <div className="min-h-screen w-full bg-gradient-to-br from-slate-500 via-slate-600 to-cyan-700 flex items-center justify-center px-4 py-6">
       <div className="max-w-5xl w-full bg-white rounded-2xl shadow-xl overflow-hidden grid grid-cols-1 md:grid-cols-2">
         
         {/* Left panel */}
-        <div className="hidden md:flex flex-col justify-center p-10 text-white bg-gradient-to-br from-indigo-600 to-purple-700">
+        <div className="hidden md:flex flex-col justify-center p-10 text-white bg-gradient-to-br from-slate-700 to-cyan-800">
           <h1 className="text-4xl font-bold mb-4">Welcome to Civix</h1>
           <p className="text-lg opacity-90 mb-8">
             Your Digital Platform for Civic Engagement
@@ -87,7 +87,7 @@ export default function AuthPage() {
                 onClick={() => setActiveView("login")}
                 className={`flex-1 py-2 font-semibold text-sm sm:text-base ${
                   activeView === "login"
-                    ? "border-b-2 border-indigo-600 text-indigo-600"
+                    ? "border-b-2 border-cyan-700 text-cyan-700"
                     : "text-gray-500"
                 }`}
               >
@@ -97,7 +97,7 @@ export default function AuthPage() {
                 onClick={() => setActiveView("signup")}
                 className={`flex-1 py-2 font-semibold text-sm sm:text-base ${
                   activeView === "signup"
-                    ? "border-b-2 border-indigo-600 text-indigo-600"
+                    ? "border-b-2 border-cyan-700 text-cyan-700"
                     : "text-gray-500"
                 }`}
               >

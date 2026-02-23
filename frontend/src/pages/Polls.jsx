@@ -14,6 +14,12 @@ export default function Polls() {
   const [loading, setLoading] = useState(true);
   const [selectedOption, setSelectedOption] = useState({});
   const [filter, setFilter] = useState("active");
+  const [userRole, setUserRole] = useState("citizen");
+  const [verificationStatus, setVerificationStatus] = useState("unverified");
+  const [locationFilter, setLocationFilter] = useState("");
+  const [statusUpdatingId, setStatusUpdatingId] = useState("");
+  const [deletingPollId, setDeletingPollId] = useState("");
+  const [confirmDeletePoll, setConfirmDeletePoll] = useState(null);
   const [notification, setNotification] = useState({
     open: false,
     message: "",
@@ -30,6 +36,21 @@ export default function Polls() {
   };
 
   useEffect(() => {
+    const rawUser = localStorage.getItem("user");
+    if (rawUser) {
+      try {
+        const parsed = JSON.parse(rawUser);
+        setUserRole(parsed?.role || "citizen");
+        setVerificationStatus(parsed?.verificationStatus || "unverified");
+        const city = parsed?.location?.jurisdiction?.city || parsed?.location?.address || "";
+        setLocationFilter(city);
+      } catch (error) {
+        console.error("Failed to parse user", error);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     if (!notification.open) return;
     const timer = setTimeout(() => {
       closeNotification();
@@ -40,7 +61,8 @@ export default function Polls() {
 
   useEffect(() => {
     fetchPolls();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locationFilter]);
 
   const fetchPolls = async () => {
     try {
@@ -48,6 +70,7 @@ export default function Polls() {
       const token = localStorage.getItem("token");
 
       const res = await axios.get("http://localhost:5000/api/polls", {
+        params: locationFilter ? { location: locationFilter } : {},
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       setPolls(res.data.polls || []);
@@ -58,11 +81,10 @@ export default function Polls() {
     }
   };
 
-  /* ---------- HELPERS ---------- */
   const formatDate = (date) => {
     if (!date) return "No end date";
     const d = new Date(date);
-    return isNaN(d) ? "No end date" : d.toLocaleDateString();
+    return Number.isNaN(d.getTime()) ? "No end date" : d.toLocaleDateString();
   };
 
   const totalVotes = (options = []) =>
@@ -74,16 +96,10 @@ export default function Polls() {
     return (optionVotes / total) * 100;
   };
 
-  const chartColors = [
-    "#2563eb",
-    "#14b8a6",
-    "#f97316",
-    "#8b5cf6",
-    "#f43f5e",
-    "#0ea5e9",
-  ];
+  const chartColors = ["#2563eb", "#14b8a6", "#f97316", "#8b5cf6", "#f43f5e", "#0ea5e9"];
 
   const token = localStorage.getItem("token");
+  const isOfficialVerified = userRole !== "official" || verificationStatus === "verified";
 
   const filteredPolls = polls.filter((poll) => {
     if (filter === "active") return poll.status === "active";
@@ -117,7 +133,6 @@ export default function Polls() {
       })()
     : "#e5e7eb 0% 100%";
 
-  /* ---------- VOTE ---------- */
   const handleVote = async (pollId) => {
     const optionIndex = selectedOption[pollId];
     if (optionIndex === undefined) {
@@ -126,44 +141,100 @@ export default function Polls() {
     }
 
     try {
-      const token = localStorage.getItem("token");
+      const tokenVal = localStorage.getItem("token");
 
       await axios.post(
         `http://localhost:5000/api/polls/${pollId}/vote`,
         { optionIndex },
         {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${tokenVal}`,
           },
         }
       );
 
-      fetchPolls(); // refresh UI
+      showNotification("Vote recorded successfully.", "success");
+      fetchPolls();
     } catch (err) {
       showNotification(err.response?.data?.message || "Voting failed", "error");
     }
   };
 
+  const handleClosePoll = async (pollId) => {
+    try {
+      setStatusUpdatingId(pollId);
+      await axios.patch(
+        `http://localhost:5000/api/polls/${pollId}/status`,
+        { status: "closed" },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      showNotification("Poll closed successfully.", "success");
+      fetchPolls();
+    } catch (err) {
+      showNotification(err.response?.data?.message || "Failed to close poll", "error");
+    } finally {
+      setStatusUpdatingId("");
+    }
+  };
+
+  const handleDeletePoll = async () => {
+    if (!confirmDeletePoll) return;
+
+    try {
+      setDeletingPollId(confirmDeletePoll._id);
+      await axios.delete(`http://localhost:5000/api/polls/${confirmDeletePoll._id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setConfirmDeletePoll(null);
+      showNotification("Poll deleted successfully.", "success");
+      fetchPolls();
+    } catch (err) {
+      showNotification(err.response?.data?.message || "Failed to delete poll", "error");
+    } finally {
+      setDeletingPollId("");
+    }
+  };
+
+  const tabs = userRole === "official"
+    ? [
+        { key: "active", label: "Active Polls" },
+        { key: "closed", label: "Closed Polls" },
+      ]
+    : [
+        { key: "active", label: "Active Polls" },
+        { key: "voted", label: "Polls I Voted On", requiresAuth: true },
+        { key: "mine", label: "My Polls", requiresAuth: true },
+        { key: "closed", label: "Closed Polls" },
+      ];
+
   return (
     <Container className="h-full flex flex-col overflow-hidden">
       <PageHeader
         title="Polls"
-        subtitle="Participate in community polls and make your voice heard"
-        action={
-          <Button onClick={() => navigate("/polls/create")}>
+        subtitle={
+          userRole === "official"
+            ? "Create issue-specific polls, monitor sentiment, and manage poll status."
+            : "Participate in community polls and make your voice heard"
+        }
+        action={userRole === "official" ? (
+          <Button
+            onClick={() => navigate("/polls/create")}
+            disabled={!isOfficialVerified}
+          >
             + Create Poll
           </Button>
-        }
+        ) : null}
       />
 
-      {/* FILTER TABS */}
       <div className="flex flex-wrap gap-3 sm:gap-4 border-b mt-2 overflow-x-auto whitespace-nowrap">
-        {[
-          { key: "active", label: "Active Polls" },
-          { key: "voted", label: "Polls I Voted On", requiresAuth: true },
-          { key: "mine", label: "My Polls", requiresAuth: true },
-          { key: "closed", label: "Closed Polls" },
-        ].map((tab) => {
+        {tabs.map((tab) => {
           const active = filter === tab.key;
           const disabled = tab.requiresAuth && !token;
 
@@ -172,14 +243,11 @@ export default function Polls() {
               key={tab.key}
               onClick={() => setFilter(tab.key)}
               disabled={disabled}
-              className={`pb-2 text-sm font-medium transition
-                ${
-                  active
-                    ? "border-b-2 border-blue-600 text-blue-600"
-                    : "text-gray-500 hover:text-blue-600"
-                }
-                ${disabled ? "opacity-50 cursor-not-allowed" : ""}
-              `}
+              className={`pb-2 text-sm font-medium transition ${
+                active
+                  ? "border-b-2 border-blue-600 text-blue-600"
+                  : "text-gray-500 hover:text-blue-600"
+              } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               {tab.label}
             </button>
@@ -190,30 +258,16 @@ export default function Polls() {
       <div className="mt-6 flex-1 overflow-y-auto pr-2">
         {loading ? (
           <p className="text-gray-500">Loading polls...</p>
-        ) : (filter === "voted" || filter === "mine") && !token ? (
-          <p className="text-gray-500">
-            Please log in to see this view.
-          </p>
         ) : filteredPolls.length === 0 ? (
           <p className="text-gray-500">No polls found.</p>
         ) : (
           <div className="space-y-6">
             {filteredPolls.map((poll) => (
-              <div
-                key={poll._id}
-                className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 shadow-sm"
-              >
-                {/* TITLE */}
-                <h3 className="text-lg font-bold text-gray-900 mb-1">
-                  {poll.title}
-                </h3>
+              <div key={poll._id} className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-gray-900 mb-1">{poll.title}</h3>
 
-                {/* DESCRIPTION */}
-                <p className="text-sm text-gray-600 mb-3">
-                  {poll.description}
-                </p>
+                <p className="text-sm text-gray-600 mb-3">{poll.description}</p>
 
-                {/* META */}
                 <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 mb-4">
                   <span className="flex items-center gap-1">
                     <MapPin size={14} />
@@ -231,7 +285,6 @@ export default function Polls() {
                   </span>
                 </div>
 
-                {/* OPTIONS */}
                 <div className="space-y-2 mb-4">
                   {poll.options.map((opt, idx) => (
                     <label
@@ -242,6 +295,11 @@ export default function Polls() {
                         <input
                           type="radio"
                           name={poll._id}
+                          disabled={
+                            poll.status === "closed" ||
+                            userRole !== "citizen" ||
+                            poll.createdByRole !== "official"
+                          }
                           onChange={() =>
                             setSelectedOption({
                               ...selectedOption,
@@ -251,25 +309,59 @@ export default function Polls() {
                         />
                         <span className="text-sm">{opt.label}</span>
                       </div>
-                      <span className="text-xs text-gray-500">
-                        {opt.votes} votes
-                      </span>
+                      <span className="text-xs text-gray-500">{opt.votes} votes</span>
                     </label>
                   ))}
                 </div>
 
-                {/* ACTIONS */}
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <Button size="sm" onClick={() => handleVote(poll._id)}>
-                    Vote
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => setResultsPollId(poll._id)}
-                  >
+                  {poll.status === "active" &&
+                  userRole === "citizen" &&
+                  poll.createdByRole === "official" ? (
+                    <Button size="sm" onClick={() => handleVote(poll._id)}>
+                      Vote
+                    </Button>
+                  ) : poll.status === "active" &&
+                    userRole === "citizen" &&
+                    poll.createdByRole !== "official" ? (
+                    <Button size="sm" variant="secondary" disabled>
+                      Voting unavailable
+                    </Button>
+                  ) : poll.status === "active" && userRole === "official" ? (
+                    <Button size="sm" variant="secondary" disabled>
+                      Officials cannot vote
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="secondary" disabled>
+                      Poll Closed
+                    </Button>
+                  )}
+
+                  <Button size="sm" variant="secondary" onClick={() => setResultsPollId(poll._id)}>
                     View Results
                   </Button>
+
+                  {userRole === "official" && poll.status === "active" ? (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={statusUpdatingId === poll._id || !isOfficialVerified}
+                      onClick={() => handleClosePoll(poll._id)}
+                    >
+                      {statusUpdatingId === poll._id ? "Closing..." : "Close Poll"}
+                    </Button>
+                  ) : null}
+
+                  {userRole === "official" ? (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={!isOfficialVerified || deletingPollId === poll._id}
+                      onClick={() => setConfirmDeletePoll({ _id: poll._id, title: poll.title })}
+                    >
+                      {deletingPollId === poll._id ? "Deleting..." : "Delete Poll"}
+                    </Button>
+                  ) : null}
                 </div>
               </div>
             ))}
@@ -277,16 +369,43 @@ export default function Polls() {
         )}
       </div>
 
-      {/* RESULTS MODAL */}
+      {confirmDeletePoll ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+            <h3 className="text-lg font-semibold text-gray-900">Delete Poll</h3>
+            <p className="text-sm text-gray-600 mt-2">
+              Are you sure you want to delete <span className="font-medium">"{confirmDeletePoll.title}"</span> permanently?
+              This action cannot be undone and the poll will be removed from the database.
+            </p>
+
+            <div className="mt-6 flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                className="w-full sm:flex-1 px-4 py-2.5 rounded-lg border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition"
+                onClick={() => setConfirmDeletePoll(null)}
+                disabled={Boolean(deletingPollId)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="w-full sm:flex-1 px-4 py-2.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition disabled:opacity-60"
+                onClick={handleDeletePoll}
+                disabled={Boolean(deletingPollId)}
+              >
+                {deletingPollId ? "Deleting..." : "Yes, Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div
         className={`fixed inset-0 z-40 flex items-center justify-center px-4 transition-opacity duration-300 ${
           resultsPoll ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
       >
-        <div
-          className="absolute inset-0 bg-black/35"
-          onClick={() => setResultsPollId(null)}
-        />
+        <div className="absolute inset-0 bg-black/35" onClick={() => setResultsPollId(null)} />
         <div
           className={`relative w-full max-w-2xl rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl transition-all duration-300 sm:p-6 ${
             resultsPoll ? "translate-y-0 scale-100" : "translate-y-2 scale-95"
@@ -299,15 +418,10 @@ export default function Polls() {
             <>
               <div className="mb-5 flex items-start justify-between gap-4">
                 <div>
-                  <h3
-                    id="poll-results-title"
-                    className="text-lg font-bold text-gray-900"
-                  >
+                  <h3 id="poll-results-title" className="text-lg font-bold text-gray-900">
                     {resultsPoll.title}
                   </h3>
-                  <p className="text-sm text-gray-500">
-                    {resultsTotalVotes} total votes
-                  </p>
+                  <p className="text-sm text-gray-500">{resultsTotalVotes} total votes</p>
                 </div>
                 <button
                   type="button"
@@ -339,8 +453,7 @@ export default function Polls() {
                             <span
                               className="inline-block h-3 w-3 rounded-full"
                               style={{
-                                backgroundColor:
-                                  chartColors[idx % chartColors.length],
+                                backgroundColor: chartColors[idx % chartColors.length],
                               }}
                             />
                             <span className="text-gray-800">{opt.label}</span>
@@ -354,8 +467,7 @@ export default function Polls() {
                             className="h-full rounded-full transition-all duration-500"
                             style={{
                               width: `${percent}%`,
-                              backgroundColor:
-                                chartColors[idx % chartColors.length],
+                              backgroundColor: chartColors[idx % chartColors.length],
                             }}
                           />
                         </div>
@@ -369,16 +481,12 @@ export default function Polls() {
         </div>
       </div>
 
-      {/* CENTER NOTIFICATION */}
       <div
         className={`fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-300 ${
           notification.open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
       >
-        <div
-          className="absolute inset-0 bg-black/35 backdrop-blur-[1px]"
-          onClick={closeNotification}
-        />
+        <div className="absolute inset-0 bg-black/35 backdrop-blur-[1px]" onClick={closeNotification} />
         <div
           className={`relative w-[90%] max-w-md rounded-2xl border px-5 py-4 shadow-2xl transition-all duration-300 ${
             notification.open ? "translate-y-0 scale-100" : "translate-y-3 scale-95"
@@ -404,7 +512,7 @@ export default function Polls() {
             className="absolute right-3 top-2 text-lg leading-none text-gray-500 hover:text-gray-700"
             aria-label="Close notification"
           >
-            ×
+            x
           </button>
         </div>
       </div>

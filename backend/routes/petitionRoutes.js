@@ -49,6 +49,17 @@ const validateSignature = [
     .withMessage('Comment must not exceed 500 characters')
 ];
 
+const validateOfficialResponse = [
+  body('comment')
+    .trim()
+    .isLength({ min: 5, max: 1000 })
+    .withMessage('Comment must be between 5 and 1000 characters'),
+  body('status')
+    .optional()
+    .isIn(['active', 'under_review', 'completed', 'closed'])
+    .withMessage('Invalid status')
+];
+
 // Validation middleware for updating petitions
 const validatePetitionUpdate = [
   body('title')
@@ -96,6 +107,8 @@ const validatePetitionUpdate = [
 
 // Public but can read user if logged in
 router.get('/', optionalAuth, petitionController.getPetitions);
+router.get('/locality', authenticateToken, petitionController.getLocalityPetitions);
+router.get('/locality-officials', authenticateToken, petitionController.getLocalityOfficialsWithRemarks);
 
 router.get('/:id', petitionController.getPetitionById);
 
@@ -107,6 +120,9 @@ router.post('/', validatePetitionCreation, petitionController.createPetition);
 
 // Sign a petition
 router.post('/:id/sign', validateSignature, petitionController.signPetition);
+
+// Official response and status update
+router.post('/:id/respond', validateOfficialResponse, petitionController.respondToPetition);
 
 // Get user's signature on a specific petition
 router.get('/:id/my-signature', petitionController.getUserSignature);

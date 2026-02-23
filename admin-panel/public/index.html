@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Civix Admin Panel</title>
+    <style>
+      :root {
+        --bg: #f3f6fb;
+        --card: #ffffff;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --border: #dbe3ef;
+        --primary: #0f4c81;
+        --success: #0f9d6a;
+        --danger: #c0392b;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(140deg, #eef3fb, #f8fafc);
+        color: var(--text);
+      }
+      .shell {
+        max-width: 1100px;
+        margin: 32px auto;
+        padding: 0 16px 24px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 8px 24px rgba(15, 76, 129, 0.08);
+      }
+      h1, h2, h3, p { margin: 0; }
+      .sub { color: var(--muted); margin-top: 6px; }
+      .row { display: flex; gap: 12px; flex-wrap: wrap; }
+      input, textarea, button {
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        font: inherit;
+      }
+      input, textarea {
+        width: 100%;
+        padding: 10px 12px;
+        background: #fff;
+      }
+      textarea { min-height: 72px; resize: vertical; }
+      button {
+        padding: 10px 14px;
+        cursor: pointer;
+        background: #f8fafc;
+      }
+      .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+      .btn-success { background: var(--success); color: white; border-color: var(--success); }
+      .btn-danger { background: var(--danger); color: white; border-color: var(--danger); }
+      .btn-ghost { background: white; }
+      .hidden { display: none !important; }
+      .grid { display: grid; gap: 14px; }
+      .request {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 14px;
+        background: #fff;
+      }
+      .pill {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 12px;
+        background: #e6f7ef;
+        color: #116149;
+      }
+      .msg {
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        font-size: 14px;
+      }
+      .msg.error { background: #fdecec; color: #8a2424; border: 1px solid #f8cccc; }
+      .msg.success { background: #eaf8f1; color: #116149; border: 1px solid #cbeedc; }
+      .top-gap { margin-top: 16px; }
+      .docs a {
+        color: #0f4c81;
+        text-decoration: none;
+      }
+      .docs a:hover { text-decoration: underline; }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <div class="card" id="loginCard">
+        <h1>Civix Admin Panel</h1>
+        <p class="sub">Review and approve official verification requests.</p>
+        <div class="grid top-gap">
+          <div>
+            <label>Admin Username</label>
+            <input id="username" placeholder="Singh" />
+          </div>
+          <div>
+            <label>Admin Password</label>
+            <input id="password" type="password" placeholder="5544" />
+          </div>
+          <div class="row">
+            <button class="btn-primary" id="loginBtn">Sign In</button>
+          </div>
+        </div>
+        <div id="loginMessage"></div>
+      </div>
+
+      <div class="card hidden" id="dashboardCard">
+        <div class="row" style="justify-content: space-between; align-items: center;">
+          <div>
+            <h2>Pending Verification Requests</h2>
+            <p class="sub">Approve or reject officials after document review.</p>
+          </div>
+          <div class="row">
+            <button class="btn-ghost" id="refreshBtn">Refresh</button>
+            <button class="btn-danger" id="logoutBtn">Logout</button>
+          </div>
+        </div>
+        <div id="dashboardMessage"></div>
+        <div id="requestList" class="grid top-gap"></div>
+      </div>
+    </div>
+
+    <script>
+      const API = "http://localhost:5000/api/admin";
+      const loginCard = document.getElementById("loginCard");
+      const dashboardCard = document.getElementById("dashboardCard");
+      const loginMessage = document.getElementById("loginMessage");
+      const dashboardMessage = document.getElementById("dashboardMessage");
+      const requestList = document.getElementById("requestList");
+
+      const setMessage = (target, text, type) => {
+        if (!text) {
+          target.innerHTML = "";
+          return;
+        }
+        target.innerHTML = `<div class="msg ${type}">${text}</div>`;
+      };
+
+      const getToken = () => localStorage.getItem("admin_token");
+
+      const switchView = (isLoggedIn) => {
+        loginCard.classList.toggle("hidden", isLoggedIn);
+        dashboardCard.classList.toggle("hidden", !isLoggedIn);
+      };
+
+      const adminFetch = async (url, options = {}) => {
+        const token = getToken();
+        const headers = options.headers || {};
+        headers.Authorization = `Bearer ${token}`;
+        return fetch(url, { ...options, headers });
+      };
+
+      const renderRequests = (requests = []) => {
+        if (!requests.length) {
+          requestList.innerHTML = `<div class="request"><p>No pending verification requests.</p></div>`;
+          return;
+        }
+
+        requestList.innerHTML = requests
+          .map(({ user, documents }) => {
+            const docsHtml = documents.length
+              ? `<div class="docs">${documents
+                  .map(
+                    (doc) => `
+                  <div>
+                    <span>${doc.documentType}</span> -
+                    <a href="${API}/verification/document/${doc.id}" target="_self">Open ${doc.metadata?.originalName || "document"}</a>
+                  </div>
+                `
+                  )
+                  .join("")}</div>`
+              : "<p class=\"sub\">No pending documents</p>";
+
+            return `
+              <div class="request">
+                <div class="row" style="justify-content: space-between; align-items: center;">
+                  <div>
+                    <h3>${user.name}</h3>
+                    <p class="sub">${user.email}</p>
+                    <p class="sub">City: ${user.location?.jurisdiction?.city || user.location?.address || "-"}</p>
+                  </div>
+                  <span class="pill">${user.verificationStatus}</span>
+                </div>
+                <div class="top-gap">${docsHtml}</div>
+                <div class="top-gap">
+                  <textarea id="notes-${user.id}" placeholder="Optional review notes..."></textarea>
+                </div>
+                <div class="row top-gap">
+                  <button class="btn-success" onclick="reviewRequest('${user.id}', 'approved')">Approve</button>
+                  <button class="btn-danger" onclick="reviewRequest('${user.id}', 'rejected')">Reject</button>
+                </div>
+              </div>
+            `;
+          })
+          .join("");
+      };
+
+      const loadRequests = async () => {
+        try {
+          setMessage(dashboardMessage, "", "");
+          const res = await adminFetch(`${API}/verification/pending`);
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.message || "Failed to load requests");
+          }
+          renderRequests(data.requests || []);
+        } catch (error) {
+          setMessage(dashboardMessage, error.message, "error");
+        }
+      };
+
+      window.reviewRequest = async (userId, decision) => {
+        const notes = document.getElementById(`notes-${userId}`)?.value || "";
+        try {
+          const res = await adminFetch(`${API}/verification/review/${userId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ decision, notes }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.message || "Review failed");
+          }
+          setMessage(dashboardMessage, data.message, "success");
+          await loadRequests();
+        } catch (error) {
+          setMessage(dashboardMessage, error.message, "error");
+        }
+      };
+
+      document.getElementById("loginBtn").addEventListener("click", async () => {
+        const username = document.getElementById("username").value.trim();
+        const password = document.getElementById("password").value;
+        try {
+          setMessage(loginMessage, "", "");
+          const res = await fetch(`${API}/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.message || "Login failed");
+          }
+          localStorage.setItem("admin_token", data.token);
+          switchView(true);
+          await loadRequests();
+        } catch (error) {
+          setMessage(loginMessage, error.message, "error");
+        }
+      });
+
+      document.getElementById("refreshBtn").addEventListener("click", loadRequests);
+      document.getElementById("logoutBtn").addEventListener("click", () => {
+        localStorage.removeItem("admin_token");
+        switchView(false);
+        setMessage(dashboardMessage, "", "");
+      });
+
+      if (getToken()) {
+        switchView(true);
+        loadRequests();
+      } else {
+        switchView(false);
+      }
+    </script>
+  </body>
+</html>
