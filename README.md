@@ -119,23 +119,7 @@ APP_NAME=Civix
 
 ---
 
-## 🧪 Scripts
 
-### Backend
-
-```bash
-npm run dev
-npm start
-```
-
-### Frontend
-
-```bash
-npm run dev
-npm run build
-```
-
----
 
 
 
