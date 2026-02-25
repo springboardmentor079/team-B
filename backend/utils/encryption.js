@@ -22,7 +22,7 @@ class EncryptionUtil {
   encrypt(data) {
     try {
       const iv = crypto.randomBytes(IV_LENGTH);
-      const cipher = crypto.createCipherGCM(ALGORITHM, this.encryptionKey, iv);
+      const cipher = crypto.createCipheriv(ALGORITHM, this.encryptionKey, iv);
       cipher.setAAD(Buffer.from('civix-verification', 'utf8'));
       
       let encrypted = cipher.update(data);
@@ -49,7 +49,7 @@ class EncryptionUtil {
     try {
       const { encryptedData, iv, authTag } = encryptedObj;
       
-      const decipher = crypto.createDecipherGCM(ALGORITHM, this.encryptionKey, iv);
+      const decipher = crypto.createDecipheriv(ALGORITHM, this.encryptionKey, iv);
       decipher.setAAD(Buffer.from('civix-verification', 'utf8'));
       decipher.setAuthTag(authTag);
       

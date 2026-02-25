@@ -1,6 +1,13 @@
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const VerificationDocument = require('../models/VerificationDocument');
+const Petition = require('../models/Petition');
+const Poll = require('../models/Poll');
+const Signature = require('../models/Signature');
+const Vote = require('../models/Vote');
+const Report = require('../models/Report');
+const Notification = require('../models/Notification');
 const { getAdminJwtSecret } = require('../middleware/adminAuthMiddleware');
 const encryptionUtil = require('../utils/encryption');
 
@@ -171,5 +178,103 @@ exports.downloadVerificationDocument = async (req, res) => {
   } catch (error) {
     console.error('Admin download verification document error:', error);
     return res.status(500).json({ message: 'Failed to download verification document' });
+  }
+};
+
+exports.getManagedUsers = async (req, res) => {
+  try {
+    const allowedRoles = ['citizen', 'official'];
+    const role = req.query.role;
+    const filter = role && allowedRoles.includes(role) ? { role } : { role: { $in: allowedRoles } };
+
+    const users = await User.find(filter)
+      .select('name email role verificationStatus location createdAt')
+      .sort({ createdAt: -1 });
+
+    return res.json({
+      users: users.map((user) => ({
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        verificationStatus: user.verificationStatus,
+        location: user.location,
+        createdAt: user.createdAt,
+      })),
+    });
+  } catch (error) {
+    console.error('Get admin managed users error:', error);
+    return res.status(500).json({ message: 'Failed to fetch users' });
+  }
+};
+
+exports.deleteManagedUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: 'Invalid user id' });
+    }
+
+    const user = await User.findOne({ _id: userId, role: { $in: ['citizen', 'official'] } });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found or not deletable' });
+    }
+
+    const [petitions, polls] = await Promise.all([
+      Petition.find({ createdBy: user._id }).select('_id'),
+      Poll.find({ createdBy: user._id }).select('_id'),
+    ]);
+
+    const petitionIds = petitions.map((p) => p._id);
+    const pollIds = polls.map((p) => p._id);
+
+    await Promise.all([
+      VerificationDocument.deleteMany({ userId: user._id }),
+      VerificationDocument.updateMany({ reviewedBy: user._id }, { $unset: { reviewedBy: '' } }),
+
+      Signature.deleteMany({
+        $or: [
+          { user: user._id },
+          petitionIds.length ? { petition: { $in: petitionIds } } : null,
+        ].filter(Boolean),
+      }),
+      Vote.deleteMany({
+        $or: [
+          { user: user._id },
+          pollIds.length ? { poll: { $in: pollIds } } : null,
+        ].filter(Boolean),
+      }),
+
+      Petition.updateMany({}, { $pull: { officialResponses: { official: user._id } } }),
+      Poll.updateMany({}, { $pull: { votedUsers: user._id } }),
+
+      petitionIds.length ? Petition.deleteMany({ _id: { $in: petitionIds } }) : Promise.resolve(),
+      pollIds.length ? Poll.deleteMany({ _id: { $in: pollIds } }) : Promise.resolve(),
+
+      Report.deleteMany({ createdBy: user._id }),
+
+      Notification.deleteMany({
+        $or: [
+          { recipient: user._id },
+          { actor: user._id },
+          petitionIds.length ? { petition: { $in: petitionIds } } : null,
+        ].filter(Boolean),
+      }),
+    ]);
+
+    await User.findByIdAndDelete(user._id);
+
+    return res.json({
+      message: `${user.role} account deleted successfully`,
+      deletedUser: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error('Admin delete managed user error:', error);
+    return res.status(500).json({ message: 'Failed to delete user account' });
   }
 };

@@ -1,6 +1,7 @@
 const Petition = require('../models/Petition');
 const Signature = require('../models/Signature');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 const { validationResult } = require('express-validator');
 
 /**
@@ -911,6 +912,35 @@ exports.respondToPetition = async (req, res) => {
 
     await petition.save();
     await petition.populate('officialResponses.official', 'name role');
+
+    // Notify the petition creator about official action.
+    if (petition.createdBy && petition.createdBy.toString() !== req.user.id) {
+      try {
+        const officialActor = await User.findById(req.user.id).select('name');
+        const actorName = officialActor?.name || 'An official';
+        const latestStatus = petition.status === 'under_review'
+          ? 'under review'
+          : petition.status;
+        const compactTitle = petition.title.length > 90
+          ? `${petition.title.slice(0, 87)}...`
+          : petition.title;
+
+        await Notification.create({
+          recipient: petition.createdBy,
+          actor: req.user.id,
+          petition: petition._id,
+          type: 'petition_response',
+          title: `Update on your petition: ${compactTitle}`,
+          message: `${actorName} responded and marked your petition as ${latestStatus}.`,
+          metadata: {
+            status: petition.status,
+            comment: comment.trim()
+          }
+        });
+      } catch (notifyError) {
+        console.error('Create petition notification error:', notifyError);
+      }
+    }
 
     res.json({
       message: 'Official response added successfully',

@@ -12,8 +12,11 @@ export default function OTPSignupForm({ onSuccess, onNotify }) {
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors, isSubmitting },
-  } = useForm();
+  } = useForm({
+    shouldUnregister: true,
+  });
 
   // STEP 1: Request OTP
   const handleSignup = async (data) => {
@@ -35,6 +38,7 @@ export default function OTPSignupForm({ onSuccess, onNotify }) {
       await requestSignupOTP(payload);
       setEmailForOTP(data.email);
       setStep("otp");
+      reset({ otp: "" });
       onNotify?.({
         type: "info",
         title: "OTP sent",
@@ -73,7 +77,7 @@ export default function OTPSignupForm({ onSuccess, onNotify }) {
   return (
     <div className="space-y-6">
       {step === "form" ? (
-        <form onSubmit={handleSubmit(handleSignup)} className="space-y-4">
+        <form key="signup-form" onSubmit={handleSubmit(handleSignup)} className="space-y-4">
           <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">
             Create an account
           </h2>
@@ -143,7 +147,7 @@ export default function OTPSignupForm({ onSuccess, onNotify }) {
           </button>
         </form>
       ) : (
-        <form onSubmit={handleSubmit(handleOTPVerify)} className="space-y-4">
+        <form key="otp-form" onSubmit={handleSubmit(handleOTPVerify)} className="space-y-4">
           <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">
             Verify OTP
           </h2>
@@ -155,6 +159,8 @@ export default function OTPSignupForm({ onSuccess, onNotify }) {
           <input
             {...register("otp", { required: true })}
             placeholder="Enter OTP"
+            autoComplete="one-time-code"
+            inputMode="numeric"
             className="w-full border rounded-lg px-4 py-2 text-center tracking-widest text-sm sm:text-base"
           />
 

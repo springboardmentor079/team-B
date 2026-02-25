@@ -170,11 +170,6 @@ exports.voteOnPoll = async (req, res) => {
       return res.status(404).json({ message: "Poll not found" });
     }
 
-    const pollCreator = await User.findById(poll.createdBy).select("role");
-    if (!pollCreator || pollCreator.role !== "official") {
-      return res.status(403).json({ message: "Citizens can vote only on polls created by officials" });
-    }
-
     if (poll.status === "closed") {
       return res.status(400).json({ message: "Poll is closed" });
     }

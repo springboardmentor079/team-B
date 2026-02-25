@@ -297,8 +297,7 @@ export default function Polls() {
                           name={poll._id}
                           disabled={
                             poll.status === "closed" ||
-                            userRole !== "citizen" ||
-                            poll.createdByRole !== "official"
+                            userRole !== "citizen"
                           }
                           onChange={() =>
                             setSelectedOption({
@@ -316,16 +315,9 @@ export default function Polls() {
 
                 <div className="flex flex-col sm:flex-row gap-3">
                   {poll.status === "active" &&
-                  userRole === "citizen" &&
-                  poll.createdByRole === "official" ? (
+                  userRole === "citizen" ? (
                     <Button size="sm" onClick={() => handleVote(poll._id)}>
                       Vote
-                    </Button>
-                  ) : poll.status === "active" &&
-                    userRole === "citizen" &&
-                    poll.createdByRole !== "official" ? (
-                    <Button size="sm" variant="secondary" disabled>
-                      Voting unavailable
                     </Button>
                   ) : poll.status === "active" && userRole === "official" ? (
                     <Button size="sm" variant="secondary" disabled>
